@@ -18,6 +18,14 @@ class Settings(context: Context) {
     private val _smartRewind = MutableStateFlow(prefs.getBoolean(KEY_SMART_REWIND, true))
     val smartRewind: StateFlow<Boolean> = _smartRewind
 
+    /**
+     * Off (default): when another app plays a short sound (navigation prompt, notification,
+     * a car's own Bluetooth audio focus grab), keep reading at a lower volume. On: pause instead.
+     * Pausing is Android's default for speech and causes 0.5–2 s dropouts in some cars.
+     */
+    private val _pauseForOtherSounds = MutableStateFlow(prefs.getBoolean(KEY_PAUSE_FOR_SOUNDS, false))
+    val pauseForOtherSounds: StateFlow<Boolean> = _pauseForOtherSounds
+
     private val _shakeToExtend = MutableStateFlow(prefs.getBoolean(KEY_SHAKE, true))
     val shakeToExtend: StateFlow<Boolean> = _shakeToExtend
 
@@ -29,6 +37,7 @@ class Settings(context: Context) {
 
     fun setSkipSilence(v: Boolean) { _skipSilence.value = v; prefs.edit { putBoolean(KEY_SKIP_SILENCE, v) } }
     fun setSmartRewind(v: Boolean) { _smartRewind.value = v; prefs.edit { putBoolean(KEY_SMART_REWIND, v) } }
+    fun setPauseForOtherSounds(v: Boolean) { _pauseForOtherSounds.value = v; prefs.edit { putBoolean(KEY_PAUSE_FOR_SOUNDS, v) } }
     fun setShakeToExtend(v: Boolean) { _shakeToExtend.value = v; prefs.edit { putBoolean(KEY_SHAKE, v) } }
 
     companion object {
@@ -39,5 +48,6 @@ class Settings(context: Context) {
         private const val KEY_SKIP_SILENCE = "skip_silence"
         private const val KEY_SMART_REWIND = "smart_rewind"
         private const val KEY_SHAKE = "shake_to_extend"
+        private const val KEY_PAUSE_FOR_SOUNDS = "pause_for_other_sounds"
     }
 }

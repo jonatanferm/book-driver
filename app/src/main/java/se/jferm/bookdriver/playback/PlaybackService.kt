@@ -48,7 +48,7 @@ class PlaybackService : MediaLibraryService() {
 
     override fun onCreate() {
         super.onCreate()
-        val exo = PlayerFactory.create(this, app.http)
+        val exo = PlayerFactory.create(this, app.http, app.settings.pauseForOtherSounds.value)
         player = BookPlayer(exo, app.library, app.settings)
         exo.addListener(ProgressListener())
 
@@ -80,6 +80,11 @@ class PlaybackService : MediaLibraryService() {
         // Keep speed / skip-silence in step with settings.
         scope.launch { app.settings.speed.collect { exo.setPlaybackSpeed(it) } }
         scope.launch { app.settings.skipSilence.collect { exo.skipSilenceEnabled = it } }
+        scope.launch {
+            app.settings.pauseForOtherSounds.collect {
+                exo.setAudioAttributes(PlayerFactory.audioAttributes(it), /* handleAudioFocus = */ true)
+            }
+        }
         app.sleepTimer.attach(player, scope)
 
         // Save position regularly while playing; push to Drive every couple of minutes.
@@ -140,6 +145,13 @@ class PlaybackService : MediaLibraryService() {
         }
 
         override fun onPlaybackStateChanged(state: Int) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (state == Player.STATE_BUFFERING) bufferingSince = now
+            else if (bufferingSince != 0L) {
+                val ms = now - bufferingSince
+                bufferingSince = 0
+                if (player.playWhenReady && ms > 300) DiagLog.i(TAG, "stalled ${ms} ms waiting for data")
+            }
             when (state) {
                 Player.STATE_READY -> {
                     val (bookId, track) = BookMedia.parse(player.currentMediaItem?.mediaId) ?: return
@@ -154,6 +166,33 @@ class PlaybackService : MediaLibraryService() {
                 }
             }
         }
+
+        // What stopped the sound, for the diagnostics log: our own pause, another app taking
+        // audio focus, Bluetooth disconnecting, or the network not keeping up.
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            val why = when (reason) {
+                Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST -> "user/controller"
+                Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> "audio focus lost"
+                Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> "headphones/Bluetooth disconnected"
+                Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE -> "remote"
+                Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM -> "end of item"
+                Player.PLAY_WHEN_READY_CHANGE_REASON_SUPPRESSED_TOO_LONG -> "suppressed too long"
+                else -> "reason $reason"
+            }
+            DiagLog.i(TAG, "${if (playWhenReady) "play" else "pause"} ($why)")
+        }
+
+        override fun onPlaybackSuppressionReasonChanged(reason: Int) {
+            val why = when (reason) {
+                Player.PLAYBACK_SUPPRESSION_REASON_NONE -> "none"
+                Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS -> "another app is using audio"
+                Player.PLAYBACK_SUPPRESSION_REASON_UNSUITABLE_AUDIO_OUTPUT -> "unsuitable audio output"
+                else -> "reason $reason"
+            }
+            DiagLog.i(TAG, "suppression: $why")
+        }
+
+        private var bufferingSince = 0L
 
         override fun onPlayerError(error: PlaybackException) {
             DiagLog.e(TAG, "player error ${error.errorCodeName}", error.cause ?: error)

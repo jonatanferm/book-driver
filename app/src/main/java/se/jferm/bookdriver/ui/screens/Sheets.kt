@@ -164,12 +164,13 @@ class SettingsActions(
     val onCopyDiagnostics: () -> Unit,
     val onSmartRewind: (Boolean) -> Unit,
     val onSkipSilence: (Boolean) -> Unit,
+    val onPauseForOtherSounds: (Boolean) -> Unit,
     val onDismiss: () -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsSheet(account: String?, smartRewind: Boolean, skipSilence: Boolean, version: String, actions: SettingsActions) {
+fun SettingsSheet(account: String?, smartRewind: Boolean, skipSilence: Boolean, pauseForOtherSounds: Boolean, version: String, actions: SettingsActions) {
     ModalBottomSheet(
         onDismissRequest = actions.onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -191,6 +192,11 @@ fun SettingsSheet(account: String?, smartRewind: Boolean, skipSilence: Boolean, 
                 SectionLabel("Listening")
                 ToggleRow("Smart rewind", "Backs up a few seconds after you pause", smartRewind, actions.onSmartRewind)
                 ToggleRow("Skip silence", "Trims long pauses in the narration", skipSilence, actions.onSkipSilence)
+                ToggleRow(
+                    "Pause for other sounds",
+                    "Pause during navigation prompts and notifications instead of playing on quietly. Can cause short dropouts over Bluetooth in some cars.",
+                    pauseForOtherSounds, actions.onPauseForOtherSounds,
+                )
             }
             HorizontalDivider(color = BD.Line)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

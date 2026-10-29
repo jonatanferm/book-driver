@@ -13,6 +13,7 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import okhttp3.OkHttpClient
@@ -44,7 +45,31 @@ object PlayerFactory {
         c.keys.toList().forEach { runCatching { c.removeResource(it) } }
     }
 
-    fun create(context: Context, http: OkHttpClient): ExoPlayer {
+    /**
+     * Media3 pauses SPEECH content on a "may duck" focus loss and lowers the volume for
+     * anything else. Cars grab transient focus a lot (often silently), and those pauses show
+     * up as 0.5–2 s dropouts, so by default we present as music and get ducked instead.
+     */
+    fun audioAttributes(pauseForOtherSounds: Boolean): AudioAttributes =
+        AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(if (pauseForOtherSounds) C.AUDIO_CONTENT_TYPE_SPEECH else C.AUDIO_CONTENT_TYPE_MUSIC)
+            .build()
+
+    // Spoken word is low bitrate: keep minutes, not seconds, buffered so tunnels and patchy
+    // mobile data in a car don't stall playback. 10 min at 128 kb/s is under 10 MB.
+    private fun loadControl() = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(
+            /* minBufferMs = */ 3 * 60_000,
+            /* maxBufferMs = */ 10 * 60_000,
+            /* bufferForPlaybackMs = */ 2_500,
+            /* bufferForPlaybackAfterRebufferMs = */ 5_000,
+        )
+        .setTargetBufferBytes(32 * 1024 * 1024)
+        .setPrioritizeTimeOverSizeThresholds(true)
+        .build()
+
+    fun create(context: Context, http: OkHttpClient, pauseForOtherSounds: Boolean = false): ExoPlayer {
         // Streamed bytes land in the cache, so rewinds and re-opens (and the moov box at
         // the end of a big .m4b) are served locally.
         val dataSource = CacheDataSource.Factory()
@@ -53,13 +78,8 @@ object PlayerFactory {
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         return ExoPlayer.Builder(context)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSource))
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                    .build(),
-                /* handleAudioFocus = */ true,
-            )
+            .setAudioAttributes(audioAttributes(pauseForOtherSounds), /* handleAudioFocus = */ true)
+            .setLoadControl(loadControl())
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setSeekBackIncrementMs(SKIP_BACK_MS)
