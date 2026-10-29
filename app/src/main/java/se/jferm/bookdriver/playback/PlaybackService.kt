@@ -5,10 +5,14 @@ import android.content.Intent
 import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DecoderReuseEvaluation
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
@@ -51,6 +55,7 @@ class PlaybackService : MediaLibraryService() {
         val exo = PlayerFactory.create(this, app.http, app.settings.pauseForOtherSounds.value)
         player = BookPlayer(exo, app.library, app.settings)
         exo.addListener(ProgressListener())
+        exo.addAnalyticsListener(AudioDiagnostics())
 
         val back = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
             .setDisplayName("Back 10 seconds")
@@ -210,6 +215,30 @@ class PlaybackService : MediaLibraryService() {
                 }
             }
         }
+    }
+
+    /** The output side of playback, which the player state never shows. */
+    private inner class AudioDiagnostics : AnalyticsListener {
+        private var lastUnderrunLog = 0L
+        private var suppressed = 0
+
+        override fun onAudioInputFormatChanged(eventTime: AnalyticsListener.EventTime, format: Format, decoderReuseEvaluation: DecoderReuseEvaluation?) =
+            DiagLog.i(TAG, "audio in: ${format.sampleMimeType} ${format.sampleRate} Hz, ${format.channelCount} ch")
+
+        override fun onAudioTrackInitialized(eventTime: AnalyticsListener.EventTime, audioTrackConfig: AudioSink.AudioTrackConfig) =
+            DiagLog.i(TAG, "audio out: ${audioTrackConfig.sampleRate} Hz, buffer ${audioTrackConfig.bufferSize / 1024} KB")
+
+        override fun onAudioUnderrun(eventTime: AnalyticsListener.EventTime, bufferSize: Int, bufferSizeMs: Long, elapsedSinceLastFeedMs: Long) {
+            // Rate-limited: a struggling phone can underrun many times a second.
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - lastUnderrunLog < 2_000) { suppressed++; return }
+            val extra = if (suppressed > 0) " (+$suppressed more)" else ""
+            DiagLog.i(TAG, "audio underrun: output ran dry, buffer $bufferSizeMs ms, ${elapsedSinceLastFeedMs} ms since last fed$extra")
+            lastUnderrunLog = now; suppressed = 0
+        }
+
+        override fun onAudioSinkError(eventTime: AnalyticsListener.EventTime, audioSinkError: Exception) =
+            DiagLog.e(TAG, "audio output error", audioSinkError)
     }
 
     // ---- session callback ------------------------------------------------------------

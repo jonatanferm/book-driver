@@ -14,6 +14,9 @@ import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioTrackBufferSizeProvider
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import okhttp3.OkHttpClient
@@ -69,14 +72,34 @@ object PlayerFactory {
         .setPrioritizeTimeOverSizeThresholds(true)
         .build()
 
+    /**
+     * The buffer between the player and the phone's audio output. ExoPlayer keeps it at a
+     * fraction of a second, so any hiccup in feeding it (CPU busy with navigation, screen off,
+     * battery saver, a hot phone on the dash) cuts the sound mid-word and resumes exactly
+     * where it stopped. Two seconds of headroom costs nothing for an audiobook.
+     */
+    private val outputBuffer = DefaultAudioTrackBufferSizeProvider.Builder()
+        .setMinPcmBufferDurationUs(1_500_000)
+        .setTargetPcmBufferDurationUs(2_000_000)
+        .setMaxPcmBufferDurationUs(3_000_000)
+        .build()
+
     fun create(context: Context, http: OkHttpClient, pauseForOtherSounds: Boolean = false): ExoPlayer {
+        val renderers = object : DefaultRenderersFactory(context) {
+            override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean) =
+                DefaultAudioSink.Builder(context)
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                    .setAudioTrackBufferSizeProvider(outputBuffer)
+                    .build()
+        }
         // Streamed bytes land in the cache, so rewinds and re-opens (and the moov box at
         // the end of a big .m4b) are served locally.
         val dataSource = CacheDataSource.Factory()
             .setCache(cache(context))
             .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(http))
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-        return ExoPlayer.Builder(context)
+        return ExoPlayer.Builder(context, renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSource))
             .setAudioAttributes(audioAttributes(pauseForOtherSounds), /* handleAudioFocus = */ true)
             .setLoadControl(loadControl())
