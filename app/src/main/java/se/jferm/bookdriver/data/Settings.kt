@@ -26,6 +26,10 @@ class Settings(context: Context) {
     private val _pauseForOtherSounds = MutableStateFlow(prefs.getBoolean(KEY_PAUSE_FOR_SOUNDS, false))
     val pauseForOtherSounds: StateFlow<Boolean> = _pauseForOtherSounds
 
+    /** Inaudible noise floor over Bluetooth so car stereos don't cut out in quiet moments. */
+    private val _bluetoothKeepAlive = MutableStateFlow(prefs.getBoolean(KEY_BT_KEEP_ALIVE, true))
+    val bluetoothKeepAlive: StateFlow<Boolean> = _bluetoothKeepAlive
+
     private val _shakeToExtend = MutableStateFlow(prefs.getBoolean(KEY_SHAKE, true))
     val shakeToExtend: StateFlow<Boolean> = _shakeToExtend
 
@@ -38,6 +42,7 @@ class Settings(context: Context) {
     fun setSkipSilence(v: Boolean) { _skipSilence.value = v; prefs.edit { putBoolean(KEY_SKIP_SILENCE, v) } }
     fun setSmartRewind(v: Boolean) { _smartRewind.value = v; prefs.edit { putBoolean(KEY_SMART_REWIND, v) } }
     fun setPauseForOtherSounds(v: Boolean) { _pauseForOtherSounds.value = v; prefs.edit { putBoolean(KEY_PAUSE_FOR_SOUNDS, v) } }
+    fun setBluetoothKeepAlive(v: Boolean) { _bluetoothKeepAlive.value = v; prefs.edit { putBoolean(KEY_BT_KEEP_ALIVE, v) } }
     fun setShakeToExtend(v: Boolean) { _shakeToExtend.value = v; prefs.edit { putBoolean(KEY_SHAKE, v) } }
 
     companion object {
@@ -49,5 +54,6 @@ class Settings(context: Context) {
         private const val KEY_SMART_REWIND = "smart_rewind"
         private const val KEY_SHAKE = "shake_to_extend"
         private const val KEY_PAUSE_FOR_SOUNDS = "pause_for_other_sounds"
+        private const val KEY_BT_KEEP_ALIVE = "bluetooth_keep_alive"
     }
 }

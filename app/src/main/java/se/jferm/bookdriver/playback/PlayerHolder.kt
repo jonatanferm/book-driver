@@ -13,6 +13,7 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.audio.DefaultAudioSink
@@ -84,13 +85,19 @@ object PlayerFactory {
         .setMaxPcmBufferDurationUs(3_000_000)
         .build()
 
-    fun create(context: Context, http: OkHttpClient, pauseForOtherSounds: Boolean = false): ExoPlayer {
+    fun create(
+        context: Context,
+        http: OkHttpClient,
+        pauseForOtherSounds: Boolean = false,
+        keepAlive: KeepAliveNoise? = null,
+    ): ExoPlayer {
         val renderers = object : DefaultRenderersFactory(context) {
             override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean) =
                 DefaultAudioSink.Builder(context)
                     .setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                     .setAudioTrackBufferSizeProvider(outputBuffer)
+                    .setAudioProcessors(listOfNotNull<AudioProcessor>(keepAlive).toTypedArray())
                     .build()
         }
         // Streamed bytes land in the cache, so rewinds and re-opens (and the moov box at

@@ -2,6 +2,10 @@ package se.jferm.bookdriver.playback
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.os.Build
 import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.media3.common.C
@@ -47,12 +51,16 @@ class PlaybackService : MediaLibraryService() {
     private lateinit var player: BookPlayer
     private var session: MediaLibrarySession? = null
     private var ticks = 0
+    @Volatile private var onBluetooth = false
+    private val keepAlive = KeepAliveNoise { onBluetooth && app.settings.bluetoothKeepAlive.value }
+    private var deviceCallback: AudioDeviceCallback? = null
     private var retries = 0
     private var lastRetryWindow = 0L
 
     override fun onCreate() {
         super.onCreate()
-        val exo = PlayerFactory.create(this, app.http, app.settings.pauseForOtherSounds.value)
+        val exo = PlayerFactory.create(this, app.http, app.settings.pauseForOtherSounds.value, keepAlive)
+        watchBluetooth()
         player = BookPlayer(exo, app.library, app.settings)
         exo.addListener(ProgressListener())
         exo.addAnalyticsListener(AudioDiagnostics())
@@ -86,6 +94,9 @@ class PlaybackService : MediaLibraryService() {
         scope.launch { app.settings.speed.collect { exo.setPlaybackSpeed(it) } }
         scope.launch { app.settings.skipSilence.collect { exo.skipSilenceEnabled = it } }
         scope.launch {
+            app.settings.bluetoothKeepAlive.collect { DiagLog.i(TAG, "Bluetooth keep-alive ${if (it) "on" else "off"}") }
+        }
+        scope.launch {
             app.settings.pauseForOtherSounds.collect {
                 exo.setAudioAttributes(PlayerFactory.audioAttributes(it), /* handleAudioFocus = */ true)
             }
@@ -113,7 +124,32 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
+    /** Track whether audio is going to a Bluetooth device: the keep-alive only runs then. */
+    private fun watchBluetooth() {
+        val am = getSystemService(AudioManager::class.java) ?: return
+        val btTypes = buildSet {
+            add(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
+            if (Build.VERSION.SDK_INT >= 31) { add(AudioDeviceInfo.TYPE_BLE_HEADSET); add(AudioDeviceInfo.TYPE_BLE_SPEAKER) }
+        }
+        fun update() {
+            val bt = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter { it.type in btTypes }
+            val now = bt.isNotEmpty()
+            if (now != onBluetooth) {
+                onBluetooth = now
+                DiagLog.i(TAG, if (now) "Bluetooth audio: ${bt.joinToString { it.productName }}" else "Bluetooth audio disconnected")
+            }
+        }
+        update()
+        val cb = object : AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>?) = update()
+            override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>?) = update()
+        }
+        am.registerAudioDeviceCallback(cb, null)
+        deviceCallback = cb
+    }
+
     override fun onDestroy() {
+        deviceCallback?.let { getSystemService(AudioManager::class.java)?.unregisterAudioDeviceCallback(it) }
         saveProgress()
         app.progressSync.schedulePush(0)
         app.sleepTimer.detach()

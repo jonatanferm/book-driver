@@ -165,12 +165,13 @@ class SettingsActions(
     val onSmartRewind: (Boolean) -> Unit,
     val onSkipSilence: (Boolean) -> Unit,
     val onPauseForOtherSounds: (Boolean) -> Unit,
+    val onBluetoothKeepAlive: (Boolean) -> Unit,
     val onDismiss: () -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsSheet(account: String?, smartRewind: Boolean, skipSilence: Boolean, pauseForOtherSounds: Boolean, version: String, actions: SettingsActions) {
+fun SettingsSheet(account: String?, smartRewind: Boolean, skipSilence: Boolean, pauseForOtherSounds: Boolean, bluetoothKeepAlive: Boolean, version: String, actions: SettingsActions) {
     ModalBottomSheet(
         onDismissRequest = actions.onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -196,6 +197,11 @@ fun SettingsSheet(account: String?, smartRewind: Boolean, skipSilence: Boolean, 
                     "Pause for other sounds",
                     "Pause during navigation prompts and notifications instead of playing on quietly. Can cause short dropouts over Bluetooth in some cars.",
                     pauseForOtherSounds, actions.onPauseForOtherSounds,
+                )
+                ToggleRow(
+                    "Bluetooth keep-alive",
+                    "Adds a faint noise floor over Bluetooth so car stereos don't cut out in quiet moments. Turn off if you hear a hiss on headphones.",
+                    bluetoothKeepAlive, actions.onBluetoothKeepAlive,
                 )
             }
             HorizontalDivider(color = BD.Line)

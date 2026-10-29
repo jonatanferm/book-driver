@@ -21,8 +21,8 @@ android {
         applicationId = "se.jferm.bookdriver"
         minSdk = 26
         targetSdk = 37
-        versionCode = 4
-        versionName = "0.2.2"
+        versionCode = 5
+        versionName = "0.2.3"
     }
 
     // Project-local debug key (gitignored), so the debug SHA-1 is known and stable.

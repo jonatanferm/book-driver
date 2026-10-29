@@ -126,6 +126,7 @@ class MainActivity : ComponentActivity() {
                 val smartRewind by vm.settings.smartRewind.collectAsStateWithLifecycle()
                 val skipSilence by vm.settings.skipSilence.collectAsStateWithLifecycle()
                 val pauseForSounds by vm.settings.pauseForOtherSounds.collectAsStateWithLifecycle()
+                val btKeepAlive by vm.settings.bluetoothKeepAlive.collectAsStateWithLifecycle()
                 val shake by vm.settings.shakeToExtend.collectAsStateWithLifecycle()
                 val toast by vm.toast.collectAsStateWithLifecycle()
 
@@ -206,7 +207,7 @@ class MainActivity : ComponentActivity() {
                             ),
                         )
                         Sheet.Settings -> SettingsSheet(
-                            account, smartRewind, skipSilence, pauseForSounds, version,
+                            account, smartRewind, skipSilence, pauseForSounds, btKeepAlive, version,
                             SettingsActions(
                                 onSwitchAccount = { vm.showSheet(Sheet.None); startAuth(AuthKind.CONNECT) },
                                 onSignOut = vm::signOut,
@@ -218,6 +219,7 @@ class MainActivity : ComponentActivity() {
                                 onSmartRewind = vm.settings::setSmartRewind,
                                 onSkipSilence = vm.settings::setSkipSilence,
                                 onPauseForOtherSounds = vm.settings::setPauseForOtherSounds,
+                                onBluetoothKeepAlive = vm.settings::setBluetoothKeepAlive,
                                 onDismiss = { vm.showSheet(Sheet.None) },
                             ),
                         )
