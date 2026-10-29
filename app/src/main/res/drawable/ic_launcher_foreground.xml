@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Page play": an open book with a play shape cut out of the right page. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.8"
+        android:scaleY="0.8"
+        android:translateX="14"
+        android:translateY="12.4">
+        <path
+            android:pathData="M12,78 Q31,72 50,79 Q69,72 88,78"
+            android:strokeColor="#B8740A"
+            android:strokeWidth="3"
+            android:strokeLineCap="round" />
+        <path
+            android:fillColor="#FFE7B8"
+            android:pathData="M14,32 Q32,25 50,32 L50,75 Q32,68 14,75 Z" />
+        <path
+            android:fillColor="#F5A524"
+            android:fillType="evenOdd"
+            android:pathData="M86,32 Q68,25 50,32 L50,75 Q68,68 86,75 Z M60,45 Q60,42 62.4,43.8 L72.6,51.2 Q75,53 72.6,54.8 L62.4,62.2 Q60,64 60,61 Z" />
+        <path
+            android:pathData="M22,42 Q32,39 42,42 M22,50 Q32,47 42,50 M22,58 Q32,55 42,58"
+            android:strokeColor="#C9B48A"
+            android:strokeWidth="2"
+            android:strokeLineCap="round" />
+    </group>
+</vector>

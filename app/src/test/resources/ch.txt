@@ -1,0 +1,19 @@
+;FFMETADATA1
+title=A Test Book, Book 3
+album=A Test Book
+artist=Jane Narrator
+[CHAPTER]
+TIMEBASE=1/1000
+START=0
+END=20000
+title=Opening Credits
+[CHAPTER]
+TIMEBASE=1/1000
+START=20000
+END=65000
+title=Chapter One: The Road
+[CHAPTER]
+TIMEBASE=1/1000
+START=65000
+END=120000
+title=Chapter Two

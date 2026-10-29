@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status bar icon: the Page play mark, white on transparent. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M8,28 Q29,19 50,28 L50,80 Q29,71 8,80 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M92,28 Q71,19 50,28 L50,80 Q71,71 92,80 Z M59,42 Q59,38 62,40.5 L75,51 Q78,53.5 75,56 L62,66.5 Q59,69 59,65 Z" />
+</vector>
