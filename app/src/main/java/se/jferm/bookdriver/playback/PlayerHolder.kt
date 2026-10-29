@@ -38,6 +38,12 @@ object PlayerFactory {
         ).also { cache = it }
     }
 
+    /** Drop all cached audio, e.g. when the account signs out. Call off the main thread. */
+    fun clearCache(context: Context) {
+        val c = cache(context)
+        c.keys.toList().forEach { runCatching { c.removeResource(it) } }
+    }
+
     fun create(context: Context, http: OkHttpClient): ExoPlayer {
         // Streamed bytes land in the cache, so rewinds and re-opens (and the moov box at
         // the end of a big .m4b) are served locally.

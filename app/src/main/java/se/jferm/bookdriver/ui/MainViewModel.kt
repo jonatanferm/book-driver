@@ -128,6 +128,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         controller?.run { stop(); clearMediaItems() }
                         deps.progressSync.reset()
                         library.clearAll()
+                        clearAudioCache()
                         _import.value = ImportUi()
                     }
                     auth.setAccountEmail(email)
@@ -174,6 +175,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             auth.signOut()
             deps.progressSync.reset()
             library.clearAll()
+            clearAudioCache()
             _import.value = ImportUi()
             _sheet.value = Sheet.None
             replaceAll(Screen.Welcome)
@@ -295,6 +297,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (finished && _playback.value.bookId == bookId) controller?.pause()
         library.setFinished(bookId, finished)
         deps.progressSync.schedulePush(2_000)
+    }
+
+    private fun clearAudioCache() = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        runCatching { se.jferm.bookdriver.playback.PlayerFactory.clearCache(getApplication()) }
+            .onFailure { DiagLog.e("ui", "couldn't clear audio cache", it) }
     }
 
     fun copyDiagnostics(): String = DiagLog.dump()

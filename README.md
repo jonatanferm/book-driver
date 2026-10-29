@@ -43,7 +43,7 @@ Book Driver asks for two narrow Google permissions and nothing else:
 | `drive.file` | Only the files **you pick** in the Drive picker. The app can't see anything else in your Drive. |
 | `drive.appdata` | A hidden folder only this app can read, used for your listening progress. |
 
-There is no Book Driver server and no analytics. Your Drive talks to your phone, that's it.
+There is no Book Driver server and no analytics. Your Drive talks to your phone, that's it. Full details: [privacy policy](https://jonatanferm.github.io/book-driver/privacy.html).
 
 ## Adding books
 
@@ -82,7 +82,7 @@ Requirements: a recent Android Studio (its bundled JDK is fine) and Android SDK 
 
 - Add a **second** Android OAuth client with the *App signing key* SHA-1 from Play Console → *Test and release → App integrity*.
 - Switch the consent screen's audience to **In production**.
-- Store icon and logo files are in [`branding/`](branding).
+- Store icon and logo files are in [`branding/`](branding). The homepage and privacy policy the consent screen and Play listing ask for are in [`docs/`](docs), served by GitHub Pages.
 
 ### Troubleshooting
 

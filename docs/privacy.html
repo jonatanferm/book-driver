@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy · Book Driver</title>
+<meta name="description" content="How Book Driver handles your data: it streams audiobooks from your own Google Drive and has no servers of its own.">
+<link rel="icon" href="images/icon.png">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="./"><img src="images/icon.png" alt="" width="32" height="32"> Book Driver</a>
+  <nav><a href="./">Home</a><a href="https://github.com/jonatanferm/book-driver">GitHub</a></nav>
+</header>
+
+<main class="doc">
+  <p class="overline">Legal</p>
+  <h1>Privacy Policy</h1>
+  <p class="meta">Effective 29 October 2026</p>
+
+  <p class="lead">Book Driver is a free, open-source Android app that plays audiobooks stored in your own Google Drive. It has no servers, no accounts of its own, no ads and no analytics. Your files go straight from Google to your phone.</p>
+
+  <h2>Who we are</h2>
+  <p>Book Driver is developed by Jonatan Ferm, an independent developer in Sweden. The source code is public at <a href="https://github.com/jonatanferm/book-driver">github.com/jonatanferm/book-driver</a>, so you can check everything in this policy against what the app actually does.</p>
+
+  <h2>The short version</h2>
+  <ul>
+    <li>The developer never receives your data. There is no Book Driver server to send it to.</li>
+    <li>The app can only open the Drive files <strong>you pick</strong>, plus a hidden folder it uses to remember your place.</li>
+    <li>Everything else stays on your phone and is deleted when you sign out or uninstall.</li>
+  </ul>
+
+  <h2>Google account and Drive access</h2>
+  <p>You sign in with Google. Book Driver asks for two permissions:</p>
+  <table>
+    <thead><tr><th>Permission</th><th>What the app does with it</th></tr></thead>
+    <tbody>
+      <tr><td><code>drive.file</code></td><td>Opens the audiobook files you select in the Google Drive picker: reads their names, sizes, chapter marks, tags and cover art, and streams their audio. It cannot see, change or delete any other file in your Drive.</td></tr>
+      <tr><td><code>drive.appdata</code></td><td>Stores one small file, <code>progress.json</code>, in a hidden folder that only Book Driver can access. It holds your listening position for each book so it survives reinstalls and follows you to other devices.</td></tr>
+    </tbody>
+  </table>
+  <p>The app also reads your account's email address from Google Drive so it can show which account is signed in and keep libraries from different accounts apart. Sign-in is handled by Google Play services. Book Driver never sees your Google password.</p>
+
+  <h2>What is stored on your phone</h2>
+  <ul>
+    <li><strong>Your library:</strong> the Drive file IDs, titles, authors, chapters and durations of the books you added, and copies of their cover art.</li>
+    <li><strong>Listening progress</strong> and your settings (speed, sleep timer, smart rewind and so on).</li>
+    <li><strong>Your account email</strong>, so the app knows who is signed in.</li>
+    <li><strong>An audio cache</strong> of up to 768 MB of recently played audio, so rewinding and reopening a book doesn't download it again. Old audio is removed automatically when the cache is full.</li>
+    <li><strong>A diagnostics log</strong> of recent app events (file names, request status codes, errors). It stays on the phone. It only leaves if you choose <em>Copy diagnostics log</em> and paste it somewhere yourself. It never contains your full access token.</li>
+  </ul>
+  <p>All of this lives in the app's private storage, which other apps can't read.</p>
+
+  <h2>What we don't do</h2>
+  <ul>
+    <li>No analytics, tracking, advertising or crash-reporting services.</li>
+    <li>No selling, renting or sharing of your data with anyone.</li>
+    <li>No use of your data to train AI or machine-learning models.</li>
+    <li>No access to your contacts, location, microphone, camera or other files on your phone.</li>
+  </ul>
+  <p>Your audio files and progress travel only between your phone and Google's servers, over HTTPS. Google's handling of your Drive data is covered by the <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.</p>
+
+  <h2>Google API Services User Data Policy</h2>
+  <p>Book Driver's use and transfer of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. Data from your Drive is used only to show and play your audiobooks in the app, and is never transferred to anyone else.</p>
+
+  <h2>Deleting your data</h2>
+  <ul>
+    <li><strong>Sign out</strong> (Settings → Sign out): revokes Book Driver's access to your Google account and deletes the library, covers, progress and audio cache from the phone.</li>
+    <li><strong>Remove a book:</strong> long-press it and choose <em>Remove from library</em>. This never touches the file in your Drive.</li>
+    <li><strong>Uninstall the app:</strong> deletes everything stored on the phone.</li>
+    <li><strong>Progress file in Drive:</strong> open Google Drive on the web → Settings → Manage apps → Book Driver → Options → <em>Delete hidden app data</em>. You can also choose <em>Disconnect from Drive</em> there.</li>
+    <li><strong>Revoke access any time</strong> from your Google Account at <a href="https://myaccount.google.com/connections">myaccount.google.com/connections</a>.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>Book Driver is not directed at children under 13 and does not knowingly collect information from them. The app itself collects nothing beyond what is described above.</p>
+
+  <h2>Your rights</h2>
+  <p>Because the developer never receives your personal data, there is nothing held by us to access, correct or delete. Everything the app stores is under your control on your phone and in your own Google Drive, as described above. If you live in the EU or EEA, you keep all your rights under the GDPR, and you can contact us with any question about them.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the new version will be published on this page with a new effective date. The full history is visible in the <a href="https://github.com/jonatanferm/book-driver/commits/main/docs/privacy.html">project's commit log</a>.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about privacy? Open an issue at <a href="https://github.com/jonatanferm/book-driver/issues">github.com/jonatanferm/book-driver/issues</a>, or write to the support email shown on Book Driver's Google sign-in screen.</p>
+</main>
+
+<footer class="foot">
+  <span>Book Driver · open source under the Apache 2.0 license</span>
+  <span><a href="./">Home</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/jonatanferm/book-driver">GitHub</a></span>
+</footer>
+</body>
+</html>
