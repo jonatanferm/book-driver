@@ -1,7 +1,15 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+// Release signing comes from keystore.properties (gitignored): storeFile, storePassword,
+// keyAlias, keyPassword. Without it, release builds come out unsigned.
+val releaseProps: Properties? = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { f ->
+    Properties().apply { f.inputStream().use { load(it) } }
 }
 
 android {
@@ -21,6 +29,14 @@ android {
     // Contributors without it fall back to their own ~/.android/debug.keystore.
     val projectDebugKey = rootProject.file("keystore/debug.keystore")
     signingConfigs {
+        if (releaseProps != null) {
+            create("release") {
+                storeFile = rootProject.file(releaseProps.getProperty("storeFile"))
+                storePassword = releaseProps.getProperty("storePassword")
+                keyAlias = releaseProps.getProperty("keyAlias")
+                keyPassword = releaseProps.getProperty("keyPassword")
+            }
+        }
         if (projectDebugKey.exists()) {
             getByName("debug") {
                 storeFile = projectDebugKey
@@ -34,6 +50,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (releaseProps != null) signingConfig = signingConfigs.getByName("release")
         }
     }
 

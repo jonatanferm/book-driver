@@ -24,6 +24,14 @@
 
 You already keep your audiobooks in Google Drive. Book Driver plays them where they are: sign in with your Google account, pick the books, and listen. It reads chapters, covers and durations straight out of the files without downloading them, streams the audio with seeking, and remembers where you are on every device.
 
+## Install
+
+1. On your Android phone, download the latest `book-driver-*.apk` from **[Releases](https://github.com/jonatanferm/book-driver/releases/latest)**.
+2. Open it. Android will ask you to allow installs from your browser or file manager the first time; allow it and tap **Install**. If Play Protect warns about an unknown app, choose **Install anyway**.
+3. Open Book Driver, sign in with Google, and add your books.
+
+Updates install over the old version and keep your library. Requires Android 8.0 or newer with Google Play services.
+
 ## Features
 
 - **Streams from Drive.** Instant seeking with HTTP Range requests, plus a local cache so rewinds and re-opens don't download again.
@@ -57,7 +65,7 @@ Tap **+** and pick files in the Google Drive picker.
 
 ## Status
 
-Book Driver works end to end: importing, streaming, chapters, speed, sleep timer and progress sync have all been exercised on real 10–20 hour books. It isn't on the Play Store yet, so for now you build it yourself (below).
+Book Driver works end to end: importing, streaming, chapters, speed, sleep timer and progress sync have all been exercised on real 10–20 hour books. It isn't on the Play Store; install the APK from [Releases](https://github.com/jonatanferm/book-driver/releases) or build it yourself (below).
 
 Not verified yet: lock-screen and notification controls on a real phone, Android Auto. Not built yet: offline downloads.
 
@@ -75,6 +83,8 @@ Because Google matches Android sign-in to an app's package name and signing key,
    - Package name: `se.jferm.bookdriver` (or your own `applicationId` if you fork).
    - SHA-1: from `./gradlew signingReport`. Debug builds use `keystore/debug.keystore` if it exists (it's gitignored), otherwise your usual `~/.android/debug.keystore`.
 5. **Open the project in Android Studio** and run it on a device or an emulator image that includes Google Play.
+
+Release builds (`./gradlew assembleRelease`) are signed from a gitignored `keystore.properties` with `storeFile`, `storePassword`, `keyAlias` and `keyPassword`. Its SHA-1 needs an Android OAuth client too.
 
 Requirements: a recent Android Studio (its bundled JDK is fine) and Android SDK 37. The app runs on Android 8.0 (API 26) and up.
 

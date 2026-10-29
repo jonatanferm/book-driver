@@ -10,6 +10,7 @@
 .externalNativeBuild/
 .cxx/
 *.keystore
+keystore.properties
 *.jks
 
 # OAuth client secrets for local testing — never commit
