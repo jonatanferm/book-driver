@@ -26,7 +26,7 @@ You already keep your audiobooks in Google Drive. Book Driver plays them where t
 
 ## Install
 
-1. On your Android phone, download the latest `book-driver-*.apk` from **[Releases](https://github.com/jonatanferm/book-driver/releases/latest)**.
+1. On your Android phone, download **[book-driver.apk](https://jonatanferm.github.io/book-driver/download/book-driver.apk)** (also on [Releases](https://github.com/jonatanferm/book-driver/releases)).
 2. Open it. Android will ask you to allow installs from your browser or file manager the first time; allow it and tap **Install**. If Play Protect warns about an unknown app, choose **Install anyway**.
 3. Open Book Driver, sign in with Google, and add your books.
 
