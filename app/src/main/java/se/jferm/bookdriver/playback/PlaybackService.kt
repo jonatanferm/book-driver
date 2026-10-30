@@ -25,6 +25,7 @@ import androidx.media3.session.MediaSession
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,10 +33,12 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import se.jferm.bookdriver.BookDriverApp
 import se.jferm.bookdriver.DiagLog
 import se.jferm.bookdriver.R
 import se.jferm.bookdriver.data.Book
+import se.jferm.bookdriver.data.Library
 import se.jferm.bookdriver.ui.MainActivity
 
 /**
@@ -51,6 +54,9 @@ class PlaybackService : MediaLibraryService() {
     private lateinit var player: BookPlayer
     private var session: MediaLibrarySession? = null
     private var ticks = 0
+
+    /** Per book: the newest progress this player's position already reflects. */
+    private val knownProgressAt = HashMap<String, Long>()
     @Volatile private var onBluetooth = false
     private val keepAlive = KeepAliveNoise { onBluetooth && app.settings.bluetoothKeepAlive.value }
     private var deviceCallback: AudioDeviceCallback? = null
@@ -62,6 +68,7 @@ class PlaybackService : MediaLibraryService() {
         val exo = PlayerFactory.create(this, app.http, app.settings.pauseForOtherSounds.value, keepAlive)
         watchBluetooth()
         player = BookPlayer(exo, app.library, app.settings)
+        player.beforeResume = ::checkDriveThenResume
         exo.addListener(ProgressListener())
         exo.addAnalyticsListener(AudioDiagnostics())
 
@@ -170,6 +177,38 @@ class PlaybackService : MediaLibraryService() {
         val (bookId, track) = BookMedia.parse(player.currentMediaItem?.mediaId) ?: return
         if (player.playbackState == Player.STATE_IDLE && finished == null) return
         app.library.saveProgress(bookId, track, player.currentPosition, finished)
+        app.library.progress.value[bookId]?.let { knownProgressAt[bookId] = it.updatedAt }
+    }
+
+    /**
+     * Before resuming, pull progress from Drive (if we haven't just), and if another device
+     * got further in this book since this player last knew, continue from there instead.
+     * Otherwise the phone would resume from its own old position and then overwrite the
+     * newer one in Drive.
+     */
+    private fun checkDriveThenResume(proceed: () -> Unit) {
+        val book = player.currentBook()
+        if (book == null || app.auth.account.value == null) { proceed(); return }
+        scope.launch {
+            if (app.progressSync.secondsSinceSync() > 15) {
+                withTimeoutOrNull(2_500) { app.progressSync.syncNow() }
+                    ?: DiagLog.i(TAG, "Drive check timed out, resuming from the local position")
+            }
+            if (followNewerProgress(book)) player.skipSmartRewind()
+            proceed()
+        }
+    }
+
+    private fun followNewerProgress(book: Book): Boolean {
+        val p = app.library.progress.value[book.id] ?: return false
+        if (p.finished || p.updatedAt <= (knownProgressAt[book.id] ?: Long.MAX_VALUE)) return false
+        knownProgressAt[book.id] = p.updatedAt
+        val here = book.globalMs(player.currentMediaItemIndex, player.currentPosition)
+        val there = book.globalMs(p.trackIndex, p.positionMs)
+        if (kotlin.math.abs(here - there) < 2_000) return false
+        DiagLog.i(TAG, "continuing from another device: ${Library.formatClock(there)} (was ${Library.formatClock(here)})")
+        player.seekTo(p.trackIndex.coerceIn(0, (player.mediaItemCount - 1).coerceAtLeast(0)), p.positionMs)
+        return true
     }
 
     private inner class ProgressListener : Player.Listener {
@@ -284,6 +323,7 @@ class PlaybackService : MediaLibraryService() {
     private fun resolve(book: Book): MediaSession.MediaItemsWithStartPosition {
         val items = BookMedia.trackItems(book, app.drive, app.library.coversDir)
         val p = app.library.progress.value[book.id]
+        knownProgressAt[book.id] = p?.updatedAt ?: 0
         val (index, pos) = if (p == null || p.finished) 0 to 0L
         else p.trackIndex.coerceIn(0, items.lastIndex) to p.positionMs
         return MediaSession.MediaItemsWithStartPosition(items, index, pos)
@@ -355,12 +395,19 @@ class PlaybackService : MediaLibraryService() {
             controller: MediaSession.ControllerInfo,
             isForPlayback: Boolean,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
-            val progress = app.library.progress.value
-            val last = app.library.books.value
-                .filter { progress[it.id]?.finished != true }
-                .maxByOrNull { progress[it.id]?.lastPlayedAt ?: 0 }
-                ?: return Futures.immediateFailedFuture(UnsupportedOperationException("Nothing to resume"))
-            return Futures.immediateFuture(resolve(last))
+            // "Play" from a headset, car or the lock screen with nothing loaded: check Drive
+            // first, so we resume where you last listened on any device.
+            val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+            scope.launch {
+                if (app.auth.account.value != null) withTimeoutOrNull(2_500) { app.progressSync.syncNow() }
+                val progress = app.library.progress.value
+                val last = app.library.books.value
+                    .filter { progress[it.id]?.finished != true }
+                    .maxByOrNull { progress[it.id]?.lastPlayedAt ?: 0 }
+                if (last == null) future.setException(UnsupportedOperationException("Nothing to resume"))
+                else future.set(resolve(last))
+            }
+            return future
         }
 
         override fun onMediaButtonEvent(

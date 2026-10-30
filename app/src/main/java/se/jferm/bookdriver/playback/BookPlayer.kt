@@ -62,15 +62,34 @@ class BookPlayer(
     override fun seekToNext() = jumpChapter(+1)
     override fun seekToPrevious() = jumpChapter(-1)
 
-    override fun play() {
-        applySmartRewind()
-        super.play()
-    }
+    /**
+     * Runs before every resume, however it was asked for (app, notification, lock screen,
+     * headset, car), and calls `proceed` when playback may start. The service uses it to
+     * check Drive for newer progress from another device first.
+     */
+    var beforeResume: ((proceed: () -> Unit) -> Unit)? = null
+    private var resuming = false
+
+    override fun play() = resume { super.play() }
 
     override fun setPlayWhenReady(playWhenReady: Boolean) {
-        if (playWhenReady) applySmartRewind()
-        super.setPlayWhenReady(playWhenReady)
+        if (playWhenReady) resume { super.setPlayWhenReady(true) } else super.setPlayWhenReady(false)
     }
+
+    private fun resume(start: () -> Unit) {
+        val hook = beforeResume
+        if (hook == null || exo.playWhenReady) { applySmartRewind(); start(); return }
+        if (resuming) return // already checking; a second press shouldn't stack up
+        resuming = true
+        hook {
+            resuming = false
+            applySmartRewind()
+            start()
+        }
+    }
+
+    /** We just jumped to where another device left off: don't rewind from there. */
+    fun skipSmartRewind() { pausedAt = 0 }
 
     /** Book-wide position in ms, or the item position when no book is loaded. */
     fun globalPosition(): Long {

@@ -29,7 +29,8 @@ const BD = (() => {
   };
 
   // ---- state -------------------------------------------------------------------------
-  let token = null, tokenExp = 0, tokenClient = null, pendingToken = null;
+  let token = null, tokenExp = 0, tokenAt = 0, tokenClient = null, pendingToken = null;
+  let unsynced = false;     // progress we couldn't write to Drive yet (session expired)
   let email = store.get('email', null);
   let books = [];           // ready books from library.json
   let progress = {};        // bookId -> {trackIndex, positionMs, updatedAt, lastPlayedAt, finished}
@@ -152,8 +153,11 @@ const BD = (() => {
           return;
         }
         token = resp.access_token;
-        tokenExp = Date.now() + resp.expires_in * 1000;
+        tokenAt = Date.now();
+        tokenExp = tokenAt + resp.expires_in * 1000;
         toWorker({ type: 'token', token });
+        setSyncWarning(false);
+        if (unsynced && cur) saveProgress(); // send what we couldn't while signed out
         p && p.resolve(token);
       },
       error_callback: (err) => { const p = pendingToken; pendingToken = null; p && p.reject(new Error(err && err.type === 'popup_closed' ? 'Sign-in was closed.' : 'Sign-in popup was blocked.')); },
@@ -173,6 +177,31 @@ const BD = (() => {
   function ensureToken() {
     if (token && Date.now() < tokenExp - 10 * 60_000) return Promise.resolve(token);
     return requestToken();
+  }
+
+  // Google's browser sign-in lasts an hour and can only be renewed from a tap or key press
+  // (it may open a popup). So renew on any interaction once the token is half an hour old,
+  // which keeps a listening session syncing as long as you touch the page now and then.
+  function renewOnInteraction() {
+    if (!email || !tokenClient || pendingToken) return;
+    if (token && Date.now() - tokenAt < 30 * 60_000) return;
+    requestToken().catch(() => {});
+  }
+  document.addEventListener('pointerdown', renewOnInteraction, true);
+  document.addEventListener('keydown', renewOnInteraction, true);
+
+  function setSyncWarning(on) {
+    const s = $('pStatus');
+    if (on) {
+      s.textContent = 'Not syncing: your Google sign-in expired. Tap anywhere to reconnect, or your phone won’t see where you are.';
+      s.hidden = false;
+      $('miniSub').dataset.warn = '1';
+      document.title = '⚠ Not syncing · Book Driver';
+    } else {
+      if (s.textContent.startsWith('Not syncing')) { s.textContent = ''; s.hidden = true; }
+      delete $('miniSub').dataset.warn;
+      if (cur) document.title = cur.book.title + ' · Book Driver';
+    }
   }
 
   class AuthError extends Error {}
@@ -196,7 +225,7 @@ const BD = (() => {
     navigator.serviceWorker.addEventListener('message', (e) => {
       const m = e.data || {};
       if (m.type === 'need-token' && e.ports[0]) e.ports[0].postMessage({ token });
-      if (m.type === 'auth-expired') { token = null; showStatus('Your Google session expired. Tap play to continue.'); }
+      if (m.type === 'auth-expired') { token = null; setSyncWarning(true); }
     });
   }
   async function toWorker(msg) {
@@ -244,7 +273,16 @@ const BD = (() => {
   }
 
   async function saveProgress({ keepalive = false } = {}) {
-    if (!cur || !token) return;
+    if (!cur) return;
+    if (!token || Date.now() > tokenExp) {
+      // Keep the position locally and flag it; it goes to Drive after the next reconnect.
+      const t = Date.now(), [track, pos] = locate(cur.book, globalNow());
+      progress[cur.book.id] = { trackIndex: track, positionMs: Math.round(pos), updatedAt: t, lastPlayedAt: t, finished: false };
+      store.set('progress', progress);
+      lastSaved = t; unsynced = true; token = null;
+      setSyncWarning(true);
+      return;
+    }
     const t = Date.now();
     const g = globalNow();
     const [track, pos] = locate(cur.book, g);
@@ -269,7 +307,12 @@ const BD = (() => {
         const r = await api('/files?uploadType=multipart&fields=id', { upload: true, method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body: multipart });
         files['progress.json'] = (await r.json()).id;
       }
-    } catch (e) { console.warn('save failed', e); }
+      unsynced = false;
+    } catch (e) {
+      unsynced = true;
+      if (e instanceof AuthError || !token) setSyncWarning(true);
+      console.warn('save failed', e);
+    }
   }
 
   // ---- views -------------------------------------------------------------------------
@@ -355,7 +398,10 @@ const BD = (() => {
     });
   }
 
-  function showStatus(msg) { const s = $('pStatus'); s.textContent = msg || ''; s.hidden = !msg; }
+  function showStatus(msg) {
+    if (!msg && $('miniSub').dataset.warn) return; // keep the "not syncing" notice until reconnected
+    const s = $('pStatus'); s.textContent = msg || ''; s.hidden = !msg;
+  }
 
   // ---- playback ----------------------------------------------------------------------
   function openBook(b, autoplay) {
@@ -474,7 +520,7 @@ const BD = (() => {
     $('tBook').textContent = `Book: ${duration(g)} of ${duration(total)} · ${total ? Math.floor(g * 100 / total) : 0}%`;
     $('pChapter').querySelector('span').textContent = chaptersOf(b)[i]?.title || '';
     $('chVal').textContent = `${i + 1}/${chaptersOf(b).length}`;
-    $('miniSub').textContent = `${chaptersOf(b)[i]?.title || ''} · ${clock(g)}`;
+    $('miniSub').textContent = $('miniSub').dataset.warn ? 'Not syncing · tap to reconnect' : `${chaptersOf(b)[i]?.title || ''} · ${clock(g)}`;
     if (view === 'chapters' && force) renderChapters();
 
     // Sleep timer counts only while playing, fades over the last 10 s.
@@ -632,5 +678,8 @@ const BD = (() => {
   window.addEventListener('focus', () => pull());
 
   renderSheet();
-  return { gsiLoaded, gsiFailed };
+  const api_ = { gsiLoaded, gsiFailed };
+  // Hooks for the local end-to-end test only.
+  if (location.hostname === 'localhost') api_.__test = { expireToken() { tokenExp = Date.now() - 1; tokenAt -= 3_600_000; }, save: () => saveProgress() };
+  return api_;
 })();

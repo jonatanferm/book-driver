@@ -193,8 +193,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * If the loaded book is paused and another device has listened further since, move the
      * player there, so "pause in the browser, open the app, press play" just continues.
      */
+    private var pendingFollow: Map<String, se.jferm.bookdriver.data.Progress>? = null
+
     private fun followRemoteProgress(before: Map<String, se.jferm.bookdriver.data.Progress>) {
-        val c = controller ?: return
+        val c = controller ?: run { pendingFollow = before; return } // apply once connected
         val bookId = _playback.value.bookId ?: return
         if (c.isPlaying) return
         val now = library.progress.value[bookId] ?: return
@@ -237,6 +239,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 override fun onEvents(player: Player, events: Player.Events) = sample()
             })
             sample()
+            pendingFollow?.let { pendingFollow = null; followRemoteProgress(it) }
         }, ContextCompat.getMainExecutor(ctx))
     }
 

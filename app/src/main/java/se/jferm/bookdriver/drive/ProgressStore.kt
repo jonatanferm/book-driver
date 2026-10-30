@@ -29,6 +29,9 @@ class ProgressSync(
     private val mutex = Mutex()
     private var fileId: String? = null
     private var pending: Job? = null
+    @Volatile private var lastSyncAt = 0L
+
+    fun secondsSinceSync(): Long = (System.currentTimeMillis() - lastSyncAt) / 1000
 
     /**
      * Pull, merge, push. Always merging before writing means a book another device (the web
@@ -43,6 +46,7 @@ class ProgressSync(
             }
             val local = repo.progress.value
             if (local != remote) push(local)
+            lastSyncAt = System.currentTimeMillis()
         }.onFailure { DiagLog.e(TAG, "sync failed", it) }
     }
 
