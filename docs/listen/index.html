@@ -48,7 +48,6 @@
   </div>
 </main>
 
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const CLIENT_ID = '1007063070283-jcrvnps2mf5inu5gd5bd5fktnm86fh8f.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata';
@@ -181,5 +180,6 @@ async function play(file, p) {
   a.play().catch((e) => log('play blocked: ' + e.message, 'bad'));
 }
 </script>
+<script src="https://accounts.google.com/gsi/client" async defer onerror="log('could not load Google sign-in (blocked by the browser or an extension?)', 'bad')"></script>
 </body>
 </html>
