@@ -30,24 +30,28 @@ class ProgressSync(
     private var fileId: String? = null
     private var pending: Job? = null
 
-    /** Pull, merge, push. Safe to call often; does nothing when signed out (requests fail). */
+    /**
+     * Pull, merge, push. Always merging before writing means a book another device (the web
+     * player, another phone) saved in the meantime is never overwritten. Safe to call often.
+     */
     suspend fun syncNow() = mutex.withLock {
         runCatching {
             val remote = pull()
             if (remote.isNotEmpty()) {
                 val changed = repo.mergeRemoteProgress(remote)
-                if (changed) DiagLog.i(TAG, "merged progress for ${remote.size} book(s) from Drive")
+                if (changed) DiagLog.i(TAG, "merged newer progress from Drive")
             }
-            push(repo.progress.value)
+            val local = repo.progress.value
+            if (local != remote) push(local)
         }.onFailure { DiagLog.e(TAG, "sync failed", it) }
     }
 
-    /** Coalesce frequent local changes into one upload. */
+    /** Coalesce frequent local changes into one sync. */
     fun schedulePush(delayMs: Long = 30_000) {
         pending?.cancel()
         pending = scope.launch {
             delay(delayMs)
-            mutex.withLock { runCatching { push(repo.progress.value) }.onFailure { DiagLog.e(TAG, "push failed", it) } }
+            syncNow()
         }
     }
 

@@ -22,16 +22,23 @@ import java.io.File
  * rewrite on change; progress is mirrored to Drive by [se.jferm.bookdriver.drive.ProgressSync].
  */
 class LibraryRepository(context: Context, private val scope: CoroutineScope) {
+    companion object {
+        /** Book ids from the first test build, when books were folders. Ignored everywhere. */
+        const val LEGACY_PREFIX = "folder:"
+    }
+
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val dir = File(context.filesDir, "library").apply { mkdirs() }
     val coversDir = File(dir, "covers").apply { mkdirs() }
     private val booksFile = File(dir, "books.json")
     private val progressFile = File(dir, "progress.json")
+    private val removedFile = File(dir, "removed.json")
     private val writeLock = Mutex()
 
     private val booksSerializer = ListSerializer(Book.serializer())
     private val progressSerializer = MapSerializer(String.serializer(), Progress.serializer())
+    private val removedSerializer = MapSerializer(String.serializer(), Long.serializer())
 
     private val _books = MutableStateFlow(readBooks())
     val books: StateFlow<List<Book>> = _books
@@ -39,14 +46,23 @@ class LibraryRepository(context: Context, private val scope: CoroutineScope) {
     private val _progress = MutableStateFlow(readProgress())
     val progress: StateFlow<Map<String, Progress>> = _progress
 
+    /** Books removed on this device, by id → when. Synced so removals spread to other devices. */
+    private val _removed = MutableStateFlow(readRemoved())
+    val removed: StateFlow<Map<String, Long>> = _removed
+
     /** Called after local progress changes so the Drive mirror can be scheduled. */
     var onProgressChanged: (() -> Unit)? = null
+
+    /** Called after a local library change (import finished, edit, removal). */
+    var onLibraryChanged: (() -> Unit)? = null
 
     fun book(id: String): Book? = _books.value.firstOrNull { it.id == id }
 
     fun containsFile(fileId: String): Boolean = _books.value.any { b -> b.tracks.any { it.fileId == fileId } }
 
     fun upsert(book: Book) {
+        val book = book.copy(updatedAt = System.currentTimeMillis())
+        _removed.update { it - book.id }
         _books.update { list ->
             val i = list.indexOfFirst { it.id == book.id }
             if (i >= 0) list.toMutableList().also { it[i] = book } else list + book
@@ -56,10 +72,11 @@ class LibraryRepository(context: Context, private val scope: CoroutineScope) {
 
     fun update(id: String, change: (Book) -> Book) {
         var changed = false
+        val now = System.currentTimeMillis()
         _books.update { list ->
-            list.map { if (it.id == id) change(it).also { changed = true } else it }
+            list.map { if (it.id == id) change(it).copy(updatedAt = now).also { changed = true } else it }
         }
-        if (changed) persistBooks()
+        if (changed) { persistBooks(); onLibraryChanged?.invoke() }
     }
 
     fun updateTrackDuration(bookId: String, trackIndex: Int, durationMs: Long) {
@@ -75,8 +92,41 @@ class LibraryRepository(context: Context, private val scope: CoroutineScope) {
         book(id)?.coverFile?.let { File(coversDir, it).delete() }
         _books.update { list -> list.filterNot { it.id == id } }
         _progress.update { it - id }
+        _removed.update { it + (id to System.currentTimeMillis()) }
         persistBooks()
         persistProgress()
+        persistRemoved()
+        onLibraryChanged?.invoke()
+    }
+
+    // ---- applying changes that came from another device (no change callbacks) ----------
+
+    /** Add or replace a book exactly as another device saved it. */
+    fun applyRemoteBook(book: Book) {
+        _removed.update { it - book.id }
+        _books.update { list ->
+            val i = list.indexOfFirst { it.id == book.id }
+            if (i >= 0) list.toMutableList().also { it[i] = book } else list + book
+        }
+        persistBooks()
+        persistRemoved()
+    }
+
+    /** A book removed on another device. */
+    fun applyRemoteRemoval(id: String, at: Long) {
+        book(id)?.coverFile?.let { File(coversDir, it).delete() }
+        _books.update { list -> list.filterNot { it.id == id } }
+        _progress.update { it - id }
+        _removed.update { it + (id to at) }
+        persistBooks()
+        persistProgress()
+        persistRemoved()
+    }
+
+    /** A cover downloaded from Drive: attach it without counting as a local edit. */
+    fun attachCover(id: String, fileName: String) {
+        _books.update { list -> list.map { if (it.id == id) it.copy(coverFile = fileName) else it } }
+        persistBooks()
     }
 
     fun saveProgress(bookId: String, trackIndex: Int, positionMs: Long, finished: Boolean? = null) {
@@ -111,7 +161,7 @@ class LibraryRepository(context: Context, private val scope: CoroutineScope) {
         var changed = false
         _progress.update { local ->
             val out = local.toMutableMap()
-            remote.forEach { (id, r) ->
+            remote.filterKeys { !it.startsWith(LEGACY_PREFIX) }.forEach { (id, r) ->
                 val l = out[id]
                 if (l == null || r.updatedAt > l.updatedAt) {
                     out[id] = r
@@ -127,6 +177,8 @@ class LibraryRepository(context: Context, private val scope: CoroutineScope) {
     fun clearAll() {
         _books.value = emptyList()
         _progress.value = emptyMap()
+        _removed.value = emptyMap()
+        persistRemoved()
         coversDir.listFiles()?.forEach { it.delete() }
         persistBooks()
         persistProgress()
@@ -144,6 +196,16 @@ class LibraryRepository(context: Context, private val scope: CoroutineScope) {
     private fun readProgress(): Map<String, Progress> = runCatching {
         if (progressFile.exists()) json.decodeFromString(progressSerializer, progressFile.readText()) else emptyMap()
     }.getOrElse { DiagLog.e("library", "couldn't read progress.json", it); emptyMap() }
+        .filterKeys { !it.startsWith(LEGACY_PREFIX) }
+
+    private fun readRemoved(): Map<String, Long> = runCatching {
+        if (removedFile.exists()) json.decodeFromString(removedSerializer, removedFile.readText()) else emptyMap()
+    }.getOrElse { emptyMap() }
+
+    private fun persistRemoved() {
+        val snapshot = _removed.value
+        scope.launch(Dispatchers.IO) { writeLock.withLock { atomicWrite(removedFile, json.encodeToString(removedSerializer, snapshot)) } }
+    }
 
     private fun persistBooks() {
         val snapshot = _books.value

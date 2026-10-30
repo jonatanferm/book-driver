@@ -118,6 +118,31 @@ class DriveApi(val http: OkHttpClient) {
     suspend fun findAppDataFile(name: String): DriveFile? =
         list("name = '${name.replace("'", "\\'")}'", space = "appDataFolder").firstOrNull()
 
+    /** Every file in the hidden app folder, in one request (covers, library.json, progress.json). */
+    suspend fun listAppData(): List<DriveFile> = list("trashed = false", space = "appDataFolder")
+
+    suspend fun downloadBytes(fileId: String): ByteArray = withContext(Dispatchers.IO) {
+        http.newCall(Request.Builder().url(mediaUrl(fileId)).build()).execute().use { res ->
+            if (!res.isSuccessful) throw DriveException(res.code, null, "download failed")
+            res.body.bytes()
+        }
+    }
+
+    suspend fun createAppDataBinary(name: String, bytes: ByteArray, mime: String): String = withContext(Dispatchers.IO) {
+        val meta = JSONObject().put("name", name).put("parents", JSONArray().put("appDataFolder"))
+        val body = MultipartBody.Builder().setType("multipart/related".toMediaType())
+            .addPart(meta.toString().toRequestBody("application/json; charset=UTF-8".toMediaType()))
+            .addPart(bytes.toRequestBody(mime.toMediaType()))
+            .build()
+        JSONObject(execute(Request.Builder().url("$UPLOAD/files?uploadType=multipart&fields=id").post(body).build())).getString("id")
+    }
+
+    suspend fun delete(fileId: String): Unit = withContext(Dispatchers.IO) {
+        http.newCall(Request.Builder().url("$BASE/files/$fileId").delete().build()).execute().use { res ->
+            if (!res.isSuccessful && res.code != 404) throw DriveException(res.code, null, "delete failed")
+        }
+    }
+
     suspend fun downloadText(fileId: String): String = withContext(Dispatchers.IO) {
         execute(Request.Builder().url(mediaUrl(fileId)).build())
     }

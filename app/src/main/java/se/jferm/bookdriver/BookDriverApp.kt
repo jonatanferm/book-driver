@@ -10,6 +10,7 @@ import se.jferm.bookdriver.data.LibraryRepository
 import se.jferm.bookdriver.data.Settings
 import se.jferm.bookdriver.drive.BookImporter
 import se.jferm.bookdriver.drive.DriveApi
+import se.jferm.bookdriver.drive.LibrarySync
 import se.jferm.bookdriver.drive.ProgressSync
 import se.jferm.bookdriver.drive.buildDriveHttpClient
 import se.jferm.bookdriver.playback.SleepTimer
@@ -32,6 +33,8 @@ class BookDriverApp : Application() {
         private set
     lateinit var progressSync: ProgressSync
         private set
+    lateinit var librarySync: LibrarySync
+        private set
     lateinit var sleepTimer: SleepTimer
         private set
 
@@ -44,6 +47,8 @@ class BookDriverApp : Application() {
         settings = Settings(this)
         importer = BookImporter(drive, library, appScope)
         progressSync = ProgressSync(drive, library, appScope)
+        librarySync = LibrarySync(drive, library, appScope)
+        library.onLibraryChanged = { if (auth.account.value != null) librarySync.schedule() }
         sleepTimer = SleepTimer(this, settings)
     }
 }

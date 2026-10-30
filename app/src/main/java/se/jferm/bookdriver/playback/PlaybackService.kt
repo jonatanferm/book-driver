@@ -103,13 +103,14 @@ class PlaybackService : MediaLibraryService() {
         }
         app.sleepTimer.attach(player, scope)
 
-        // Save position regularly while playing; push to Drive every couple of minutes.
+        // While playing: save the position on the phone every 10 s and to Drive every 30 s,
+        // so a crash or a dead battery loses at most that much on any device.
         scope.launch {
             while (isActive) {
                 delay(10_000)
                 if (player.isPlaying) {
                     saveProgress()
-                    if (++ticks % 12 == 0) app.progressSync.schedulePush(0)
+                    if (++ticks % 3 == 0) app.progressSync.schedulePush(0)
                 }
             }
         }

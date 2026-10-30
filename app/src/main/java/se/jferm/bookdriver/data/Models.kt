@@ -36,6 +36,8 @@ data class Book(
     val addedAt: Long = System.currentTimeMillis(),
     val status: ImportStatus = ImportStatus.READY,
     val error: String? = null,
+    /** Last local change, for merging the library across devices (newest wins). */
+    val updatedAt: Long = 0,
 ) {
     val durationMs: Long get() = tracks.sumOf { it.durationMs }
     val sizeBytes: Long get() = tracks.sumOf { it.size }

@@ -75,7 +75,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         connectController()
-        if (auth.account.value != null) viewModelScope.launch { deps.progressSync.syncNow() }
+        if (auth.account.value != null) viewModelScope.launch { syncWithDrive() }
         viewModelScope.launch {
             while (isActive) {
                 sample()
@@ -127,6 +127,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         DiagLog.i("auth", "switched account, clearing local library")
                         controller?.run { stop(); clearMediaItems() }
                         deps.progressSync.reset()
+                        deps.librarySync.reset()
                         library.clearAll()
                         clearAudioCache()
                         _import.value = ImportUi()
@@ -136,7 +137,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
             when (kind) {
                 AuthKind.CONNECT -> {
-                    deps.progressSync.syncNow()
+                    syncWithDrive()
                     replaceAll(Screen.Library)
                     if (library.books.value.isEmpty()) open(Screen.AddBook)
                 }
@@ -168,12 +169,53 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun retryImport(bookId: String) = deps.importer.retry(bookId)
 
+    // ---- sync with Drive (other phones, the web player) ------------------------------
+
+    private var lastForegroundSync = System.currentTimeMillis() // init already syncs
+
+    /** Called when the app comes to the foreground: pick up anything another device did. */
+    fun onForeground() {
+        if (auth.account.value == null) return
+        val now = System.currentTimeMillis()
+        if (now - lastForegroundSync < 15_000) return // not on every rotation / quick switch
+        lastForegroundSync = now
+        viewModelScope.launch { syncWithDrive() }
+    }
+
+    private suspend fun syncWithDrive() {
+        val before = library.progress.value
+        deps.progressSync.syncNow()
+        deps.librarySync.syncNow()
+        followRemoteProgress(before)
+    }
+
+    /**
+     * If the loaded book is paused and another device has listened further since, move the
+     * player there, so "pause in the browser, open the app, press play" just continues.
+     */
+    private fun followRemoteProgress(before: Map<String, se.jferm.bookdriver.data.Progress>) {
+        val c = controller ?: return
+        val bookId = _playback.value.bookId ?: return
+        if (c.isPlaying) return
+        val now = library.progress.value[bookId] ?: return
+        val old = before[bookId]
+        if (old != null && now.updatedAt <= old.updatedAt) return
+        val book = library.book(bookId) ?: return
+        val here = book.globalMs(c.currentMediaItemIndex, c.currentPosition)
+        val there = book.globalMs(now.trackIndex, now.positionMs)
+        if (kotlin.math.abs(here - there) < 2_000) return
+        DiagLog.i("sync", "following progress from another device: ${se.jferm.bookdriver.data.Library.formatClock(there)}")
+        c.seekTo(now.trackIndex.coerceIn(0, (c.mediaItemCount - 1).coerceAtLeast(0)), now.positionMs)
+        _playback.update { it.copy(trackIndex = now.trackIndex, positionMs = now.positionMs) }
+    }
+
     fun signOut() {
         controller?.run { stop(); clearMediaItems() }
         sleepTimer.cancel()
         viewModelScope.launch {
             auth.signOut()
             deps.progressSync.reset()
+            deps.librarySync.reset()
             library.clearAll()
             clearAudioCache()
             _import.value = ImportUi()
