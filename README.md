@@ -32,12 +32,15 @@ You already keep your audiobooks in Google Drive. Book Driver plays them where t
 
 Updates install over the old version and keep your library. Requires Android 8.0 or newer with Google Play services.
 
+No Android phone at hand? The [web player](https://jonatanferm.github.io/book-driver/listen/) plays the same library in any modern browser once the app has synced it.
+
 ## Features
 
 - **Streams from Drive.** Instant seeking with HTTP Range requests, plus a local cache so rewinds and re-opens don't download again.
 - **Real chapters.** Read straight from `.m4b` / `.m4a` files (Nero `chpl` and QuickTime chapter tracks) without downloading the audio. A folder of MP3s becomes one book with a chapter per file, in natural order (`Chapter 2` before `Chapter 10`).
 - **Covers and tags** come from the files (MP4 `ilst`, ID3v2). Books without art get a generated typographic cover.
-- **Remembers your place.** Positions are saved on the phone and mirrored to a hidden app folder in *your* Drive, so they survive reinstalls and follow you to a new phone.
+- **Remembers your place.** Positions are saved on the phone every 10 seconds and to a hidden app folder in *your* Drive every 30 seconds while playing. Your library is mirrored there too, so a new phone gets everything back on sign-in.
+- **Web player.** [Listen in your browser](https://jonatanferm.github.io/book-driver/listen/) with the same library and controls. Pause on the phone, keep going on the laptop, and back: whichever device played last wins.
 - **A proper player.** Back 10 s / forward 30 s, previous / next chapter, 0.5–3× speed with pitch correction, skip silence, and smart rewind (backs up a few seconds after a pause, more after a long break).
 - **Sleep timer.** 15 / 30 / 45 / 60 minutes or end of chapter. It only counts while playing, fades out over the last 10 seconds, and shaking the phone in the last minute adds 10 more.
 - **Background playback** with notification and lock-screen controls, Bluetooth and headset buttons (next/previous jump chapters), and playback resumption.
@@ -112,6 +115,8 @@ Requirements: a recent Android Studio (its bundled JDK is fine) and Android SDK 
 | `ui` | Jetpack Compose screens: Welcome, Library, Player, Chapters, Add book, and the speed/sleep and settings sheets |
 
 Importing a book never downloads the audio. The parsers read only the bytes they need through range requests: for a 1 GB `.m4b` that's usually the header and the `moov` box, a few hundred KB to a few MB.
+
+The web player lives in [`docs/listen/`](docs/listen): plain HTML, CSS and JavaScript on GitHub Pages. It signs in with Google Identity Services (a separate *Web* OAuth client in the same Cloud project, so it shares the app's hidden folder and picked files), reads `library.json` / `progress.json`, and streams through a service worker that adds the Drive auth header to the audio element's Range requests.
 
 Stack: Kotlin, Jetpack Compose, Media3 (ExoPlayer, session, cache), OkHttp, Google Identity (Play services), kotlinx.serialization. There's no Google API client library; Drive is plain REST.
 

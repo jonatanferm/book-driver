@@ -2,184 +2,125 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Listen · Book Driver</title>
-<meta name="robots" content="noindex">
+<meta name="description" content="Listen to your Book Driver audiobooks in the browser, in sync with the app.">
+<meta name="theme-color" content="#0E1116">
 <link rel="icon" href="../images/icon.png">
+<link rel="apple-touch-icon" href="../images/icon.png">
 <link rel="stylesheet" href="../site.css">
-<style>
-  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; margin-top: 16px; }
-  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  .book { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .book:last-child { border-bottom: 0; }
-  .book b { color: var(--text); }
-  .muted { color: var(--muted); font-size: 14px; }
-  .ok { color: #6BD39B; } .bad { color: #FF7A6B; }
-  #log { font: 13px/1.5 ui-monospace, Menlo, monospace; color: var(--muted); white-space: pre-wrap; max-height: 260px; overflow: auto; }
-  audio { width: 100%; margin-top: 12px; }
-  button.btn { cursor: pointer; font: inherit; }
-</style>
+<link rel="stylesheet" href="listen.css">
 </head>
 <body>
 <header class="bar">
   <a class="brand" href="../"><img src="../images/icon.png" alt="" width="32" height="32"> Book Driver</a>
-  <nav><a href="../privacy.html">Privacy</a></nav>
+  <nav id="nav">
+    <a href="../privacy.html">Privacy</a>
+    <button id="account" class="avatar" hidden aria-label="Account"></button>
+  </nav>
 </header>
-<main class="doc">
-  <p class="overline">Web player · test</p>
-  <h1>Listen</h1>
-  <p class="muted">Early test of the web player. It signs in with Google, reads your listening progress from Book Driver's hidden Drive folder, and plays your books from where you left off.</p>
 
-  <div class="panel row">
-    <button id="signin" class="btn primary">Sign in with Google</button>
-    <span id="who" class="muted"></span>
+<!-- Signed out -->
+<main id="welcome" class="view">
+  <section class="hero">
+    <img class="hero-icon" src="../images/icon.png" alt="" width="96" height="96">
+    <h1>Listen in<br>your browser.</h1>
+    <p class="lead">Your Book Driver library, right here. Picks up where the app left off, and the app picks up where you stop.</p>
+    <div class="actions">
+      <button id="signin" class="btn primary">Sign in with Google</button>
+    </div>
+    <p id="welcomeNote" class="soon">Uses the same Google account as the app. Book Driver only sees the files you picked.</p>
+  </section>
+</main>
+
+<!-- Library -->
+<main id="library" class="view" hidden>
+  <div id="continue"></div>
+  <div class="chips" role="tablist">
+    <button class="chip on" data-filter="all">All</button>
+    <button class="chip" data-filter="progress">In progress</button>
+    <button class="chip" data-filter="new">New</button>
+    <button class="chip" data-filter="finished">Finished</button>
   </div>
+  <div id="grid" class="grid-books"></div>
+  <p id="empty" class="empty" hidden></p>
+</main>
 
-  <div class="panel" id="booksPanel" hidden>
-    <h2 style="font-size:20px;margin:0 0 6px">Your books</h2>
-    <div id="books"></div>
-    <audio id="audio" controls preload="none"></audio>
-    <p id="now" class="muted"></p>
-  </div>
-
-  <div class="panel">
-    <h2 style="font-size:20px;margin:0 0 6px">Test log</h2>
-    <div id="log"></div>
+<!-- Player -->
+<main id="player" class="view" hidden>
+  <div class="player">
+    <div class="player-top">
+      <button class="icon-btn" id="closePlayer" aria-label="Back to library"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      <span class="overline-muted">Now playing</span>
+      <span style="width:44px"></span>
+    </div>
+    <div class="player-body">
+      <div id="pCover" class="p-cover"></div>
+      <div class="p-controls">
+        <h1 id="pTitle" class="p-title"></h1>
+        <p id="pSub" class="p-sub"></p>
+        <button id="pChapter" class="pill"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span></span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position in chapter">
+        <div class="times"><span id="tIn">0:00</span><span id="tLeft">-0:00</span></div>
+        <p id="tBook" class="t-book"></p>
+        <p id="pStatus" class="p-status" hidden></p>
+        <div class="transport">
+          <button class="icon-btn" id="prevCh" aria-label="Previous chapter"><svg viewBox="0 0 24 24"><path d="M5 5h2.6v14H5zM19.5 5v14L9 12z" class="fill"/></svg></button>
+          <button class="icon-btn skip" id="back10" aria-label="Back 10 seconds"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg><b>10</b></button>
+          <button class="play" id="playBtn" aria-label="Play"><svg viewBox="0 0 24 24" id="playIcon"><path d="M8 5v14l11-7z" class="fill"/></svg></button>
+          <button class="icon-btn skip" id="fwd30" aria-label="Forward 30 seconds"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg><b>30</b></button>
+          <button class="icon-btn" id="nextCh" aria-label="Next chapter"><svg viewBox="0 0 24 24"><path d="M16.4 5H19v14h-2.6zM4.5 5v14L15 12z" class="fill"/></svg></button>
+        </div>
+        <div class="tiles">
+          <button class="tile" id="speedTile"><b id="speedVal">1.0×</b><span>Speed</span></button>
+          <button class="tile" id="sleepTile"><b id="sleepVal">Off</b><span>Sleep timer</span></button>
+          <button class="tile" id="chTile"><b id="chVal">–</b><span>Chapters</span></button>
+        </div>
+      </div>
+    </div>
   </div>
 </main>
 
-<script>
-const CLIENT_ID = '1007063070283-jcrvnps2mf5inu5gd5bd5fktnm86fh8f.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata';
-const API = 'https://www.googleapis.com/drive/v3';
-let token = null, tokenClient = null;
-const $ = (id) => document.getElementById(id);
-const t0 = performance.now();
+<!-- Chapters -->
+<main id="chapters" class="view" hidden>
+  <div class="ch-head">
+    <button class="icon-btn" id="closeChapters" aria-label="Back to player"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <div><h1>Chapters</h1><p id="chSub" class="p-sub"></p></div>
+  </div>
+  <ol id="chList" class="ch-list"></ol>
+</main>
 
-function log(msg, cls) {
-  const line = document.createElement('div');
-  line.textContent = `${((performance.now() - t0) / 1000).toFixed(1).padStart(6)}s  ${msg}`;
-  if (cls) line.className = cls;
-  $('log').appendChild(line);
-  $('log').scrollTop = 1e9;
-}
-const clock = (ms) => { const s = Math.floor(ms / 1000); const h = Math.floor(s / 3600);
-  return (h ? h + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0') : Math.floor(s / 60)) + ':' + String(s % 60).padStart(2, '0'); };
+<!-- Mini player -->
+<div id="mini" class="mini" hidden>
+  <button id="miniOpen" class="mini-open"><span id="miniCover" class="mini-cover"></span><span class="mini-text"><b id="miniTitle"></b><span id="miniSub"></span></span></button>
+  <button class="icon-btn" id="miniPlay" aria-label="Play"><svg viewBox="0 0 24 24" id="miniIcon"><path d="M8 5v14l11-7z" class="fill"/></svg></button>
+</div>
 
-async function drive(path) {
-  const r = await fetch(API + path, { headers: { Authorization: 'Bearer ' + token } });
-  if (!r.ok) throw Object.assign(new Error(`${r.status} ${await r.text()}`), { status: r.status });
-  return r;
-}
+<!-- Speed & sleep sheet -->
+<div id="sheet" class="sheet-wrap" hidden>
+  <div class="sheet" role="dialog" aria-label="Speed and sleep timer">
+    <div class="sheet-row"><span class="label">Speed</span>
+      <div class="stepper"><button id="spDown" class="icon-btn" aria-label="Slower">−</button><b id="spBig">1.00×</b><button id="spUp" class="icon-btn" aria-label="Faster">+</button></div>
+    </div>
+    <div id="spPresets" class="presets"></div>
+    <hr>
+    <span class="label">Sleep timer</span>
+    <div id="sleepOpts" class="sleep-grid"></div>
+    <button id="sheetDone" class="btn wide">Done</button>
+  </div>
+</div>
 
-// ---- service worker (adds the Drive auth to audio requests) ----
-let swReady = null;
-if ('serviceWorker' in navigator) {
-  swReady = navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then((reg) => {
-    log('service worker ready');
-    return reg;
-  }).catch((e) => log('service worker failed: ' + e, 'bad'));
-  navigator.serviceWorker.addEventListener('message', (e) => {
-    if (e.data && e.data.type === 'need-token' && e.ports[0]) e.ports[0].postMessage({ token });
-  });
-} else log('this browser has no service workers, playback will not work', 'bad');
+<!-- Account menu -->
+<div id="menu" class="menu" hidden>
+  <p id="menuEmail"></p>
+  <button id="refresh" class="btn wide">Refresh library</button>
+  <button id="signout" class="btn wide">Sign out</button>
+</div>
 
-async function toWorker(msg) {
-  await swReady;
-  const sw = navigator.serviceWorker.controller || (await navigator.serviceWorker.ready).active;
-  sw && sw.postMessage(msg);
-}
+<div id="toast" class="toast" hidden></div>
+<audio id="audio" preload="auto"></audio>
 
-// ---- sign-in ----
-window.addEventListener('load', () => {
-  const wait = setInterval(() => {
-    if (!window.google || !google.accounts) return;
-    clearInterval(wait);
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID, scope: SCOPES,
-      callback: (resp) => {
-        if (resp.error) { log('sign-in failed: ' + resp.error, 'bad'); return; }
-        token = resp.access_token;
-        const granted = SCOPES.split(' ').every((s) => google.accounts.oauth2.hasGrantedAllScopes(resp, s));
-        log(`signed in, token valid ${Math.round(resp.expires_in / 60)} min, both scopes granted: ${granted}`, granted ? 'ok' : 'bad');
-        toWorker({ type: 'token', token });
-        start();
-      },
-      error_callback: (err) => log('sign-in popup problem: ' + (err && err.type), 'bad'),
-    });
-    log('Google sign-in loaded');
-  }, 100);
-});
-$('signin').onclick = () => tokenClient ? tokenClient.requestAccessToken() : log('sign-in not loaded yet', 'bad');
-
-// ---- the actual tests ----
-async function start() {
-  try {
-    const me = await (await drive('/about?fields=user(emailAddress,displayName)')).json();
-    $('who').textContent = me.user.emailAddress;
-    log('account: ' + me.user.emailAddress);
-
-    const list = await (await drive('/files?spaces=appDataFolder&fields=files(id,name,modifiedTime,size)')).json();
-    log(`hidden app folder: ${list.files.map((f) => f.name).join(', ') || '(empty)'}`, list.files.length ? 'ok' : 'bad');
-    const pf = list.files.find((f) => f.name === 'progress.json');
-    if (!pf) { log('no progress.json: the app and this page may be in different Cloud projects', 'bad'); return; }
-    log('TEST 1 passed: the web page sees the app\'s hidden folder', 'ok');
-
-    const progress = await (await drive(`/files/${pf.id}?alt=media`)).json();
-    const ids = Object.keys(progress.books || {});
-    log(`progress for ${ids.length} book(s)`);
-
-    $('booksPanel').hidden = false;
-    let readable = 0;
-    for (const id of ids) {
-      const p = progress.books[id];
-      const div = document.createElement('div');
-      div.className = 'book';
-      try {
-        const f = await (await drive(`/files/${id}?fields=id,name,size,mimeType`)).json();
-        readable++;
-        div.innerHTML = `<div><b></b><div class="muted"></div></div><button class="btn">Play</button>`;
-        div.querySelector('b').textContent = f.name;
-        div.querySelector('.muted').textContent = `${(f.size / 1e6).toFixed(0)} MB · saved at ${clock(p.positionMs)}${p.trackIndex ? ' (part ' + (p.trackIndex + 1) + ')' : ''}`;
-        div.querySelector('button').onclick = () => play(f, p);
-        log(`can open "${f.name}" (${f.mimeType})`, 'ok');
-      } catch (e) {
-        div.innerHTML = `<div><b></b><div class="muted bad"></div></div>`;
-        div.querySelector('b').textContent = id;
-        div.querySelector('.muted').textContent = `can't open: ${e.status}`;
-        log(`can't open ${id}: ${e.message.slice(0, 120)}`, 'bad');
-      }
-      $('books').appendChild(div);
-    }
-    if (ids.length) log(readable === ids.length
-      ? 'TEST 2 passed: files picked in the app open here without picking again'
-      : `TEST 2: only ${readable}/${ids.length} books open here`, readable === ids.length ? 'ok' : 'bad');
-  } catch (e) { log('error: ' + e.message, 'bad'); }
-}
-
-async function play(file, p) {
-  const a = $('audio');
-  await toWorker({ type: 'size', fileId: file.id, size: Number(file.size) });
-  await toWorker({ type: 'token', token });
-  if (!navigator.serviceWorker.controller) { log('page not controlled by the service worker yet, reload once', 'bad'); return; }
-  const target = (p.positionMs || 0) / 1000;
-  const began = performance.now();
-  a.src = 'stream/' + encodeURIComponent(file.id);
-  $('now').textContent = file.name;
-  a.onloadedmetadata = () => {
-    log(`metadata in ${((performance.now() - began) / 1000).toFixed(1)}s, duration ${clock(a.duration * 1000)}`, 'ok');
-    const seekAt = performance.now();
-    a.currentTime = target;
-    a.onseeked = () => { log(`TEST 3: seeked to ${clock(a.currentTime * 1000)} in ${((performance.now() - seekAt) / 1000).toFixed(1)}s`, 'ok'); a.onseeked = null; };
-  };
-  a.onplaying = () => log('playing at ' + clock(a.currentTime * 1000), 'ok');
-  a.onerror = () => log('audio error: ' + (a.error && (a.error.message || a.error.code)), 'bad');
-  a.onwaiting = () => log('buffering…');
-  a.load();
-  // Start inside the click so autoplay rules allow it; the seek happens once metadata is in.
-  a.play().catch((e) => log('play blocked: ' + e.message, 'bad'));
-}
-</script>
-<script src="https://accounts.google.com/gsi/client" async defer onerror="log('could not load Google sign-in (blocked by the browser or an extension?)', 'bad')"></script>
+<script src="app.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="BD.gsiLoaded()" onerror="BD.gsiFailed()"></script>
 </body>
 </html>

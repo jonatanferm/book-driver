@@ -17,9 +17,9 @@
 <main class="doc">
   <p class="overline">Legal</p>
   <h1>Privacy Policy</h1>
-  <p class="meta">Effective 29 October 2026</p>
+  <p class="meta">Effective 30 October 2026</p>
 
-  <p class="lead">Book Driver is a free, open-source Android app that plays audiobooks stored in your own Google Drive. It has no servers, no accounts of its own, no ads and no analytics. Your files go straight from Google to your phone.</p>
+  <p class="lead">Book Driver is a free, open-source Android app and web player that plays audiobooks stored in your own Google Drive. It has no servers, no accounts of its own, no ads and no analytics. Your files go straight from Google to your phone.</p>
 
   <h2>Who we are</h2>
   <p>Book Driver is developed by Jonatan Ferm, an independent developer in Sweden. The source code is public at <a href="https://github.com/jonatanferm/book-driver">github.com/jonatanferm/book-driver</a>, so you can check everything in this policy against what the app actually does.</p>
@@ -27,7 +27,7 @@
   <h2>The short version</h2>
   <ul>
     <li>The developer never receives your data. There is no Book Driver server to send it to.</li>
-    <li>The app can only open the Drive files <strong>you pick</strong>, plus a hidden folder it uses to remember your place.</li>
+    <li>Book Driver can only open the Drive files <strong>you pick</strong>, plus a hidden folder it uses to remember your library and your place.</li>
     <li>Everything else stays on your phone and is deleted when you sign out or uninstall.</li>
   </ul>
 
@@ -37,7 +37,7 @@
     <thead><tr><th>Permission</th><th>What the app does with it</th></tr></thead>
     <tbody>
       <tr><td><code>drive.file</code></td><td>Opens the audiobook files you select in the Google Drive picker: reads their names, sizes, chapter marks, tags and cover art, and streams their audio. It cannot see, change or delete any other file in your Drive.</td></tr>
-      <tr><td><code>drive.appdata</code></td><td>Stores one small file, <code>progress.json</code>, in a hidden folder that only Book Driver can access. It holds your listening position for each book so it survives reinstalls and follows you to other devices.</td></tr>
+      <tr><td><code>drive.appdata</code></td><td>Keeps a few files in a hidden folder that only Book Driver can access: <code>progress.json</code> (your listening position in each book), <code>library.json</code> (the list of books you added, with their titles, authors, chapters and durations) and a copy of each book's cover art. They let your library and progress follow you to a new phone and to the web player.</td></tr>
     </tbody>
   </table>
   <p>The app also reads your account's email address from Google Drive so it can show which account is signed in and keep libraries from different accounts apart. Sign-in is handled by Google Play services. Book Driver never sees your Google password.</p>
@@ -51,6 +51,16 @@
     <li><strong>A diagnostics log</strong> of recent app events (file names, request status codes, errors). It stays on the phone. It only leaves if you choose <em>Copy diagnostics log</em> and paste it somewhere yourself. It never contains your full access token.</li>
   </ul>
   <p>All of this lives in the app's private storage, which other apps can't read.</p>
+
+  <h2>The web player</h2>
+  <p>The web player at <a href="https://jonatanferm.github.io/book-driver/listen/">jonatanferm.github.io/book-driver/listen</a> works the same way as the app and has no server of its own either. In your browser:</p>
+  <ul>
+    <li>Sign-in uses Google's sign-in script from <code>accounts.google.com</code>, covered by the <a href="https://policies.google.com/privacy">Google Privacy Policy</a>. It asks for the same two permissions as the app.</li>
+    <li>Your access token is kept only in the page's memory, and in the memory of a small background script (a service worker) that attaches it to audio requests sent to Google Drive. It's gone when you close the tab.</li>
+    <li>The page saves your email address (to offer "Continue as …" next time), your playback speed and a copy of your listening progress in the browser's local storage. Nothing else, and no cookies of our own.</li>
+    <li>Audio streams straight from Google Drive to your browser. Your progress is written back to the same hidden <code>progress.json</code> the app uses.</li>
+  </ul>
+  <p><strong>Sign out</strong> in the web player's account menu clears all of this from that browser. It doesn't revoke the app's access; do that from your Google Account (below).</p>
 
   <h2>What we don't do</h2>
   <ul>
@@ -69,7 +79,7 @@
     <li><strong>Sign out</strong> (Settings → Sign out): revokes Book Driver's access to your Google account and deletes the library, covers, progress and audio cache from the phone.</li>
     <li><strong>Remove a book:</strong> long-press it and choose <em>Remove from library</em>. This never touches the file in your Drive.</li>
     <li><strong>Uninstall the app:</strong> deletes everything stored on the phone.</li>
-    <li><strong>Progress file in Drive:</strong> open Google Drive on the web → Settings → Manage apps → Book Driver → Options → <em>Delete hidden app data</em>. You can also choose <em>Disconnect from Drive</em> there.</li>
+    <li><strong>Library and progress in Drive:</strong> open Google Drive on the web → Settings → Manage apps → Book Driver → Options → <em>Delete hidden app data</em>. You can also choose <em>Disconnect from Drive</em> there.</li>
     <li><strong>Revoke access any time</strong> from your Google Account at <a href="https://myaccount.google.com/connections">myaccount.google.com/connections</a>.</li>
   </ul>
 
